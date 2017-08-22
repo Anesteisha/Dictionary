@@ -1,149 +1,189 @@
 package com.example;
 
+import java.io.IOException;
 import java.util.Scanner;
-import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
-
+import java.io.IOException;
+import java.util.regex.*;
 
 public class Dictionary {
+
+    public static final String OZHEGOV = "D:\\Anesteisha\\Ожегов\\Ozhegov.txt";
+
+    public static final String NOUNS = "D:\\Anesteisha\\Ожегов\\nouns.txt";
+    public static final String DEFINITION = "D:\\Anesteisha\\Ожегов\\definition.txt";
+    public static final String VOCABULARY = "D:\\Anesteisha\\Ожегов\\vocabulary.txt";
+
+    public static final String SPISOK_NEVOSHEDSHIH_PLUS= "D:\\Anesteisha\\Ожегов\\список невошедших слов_plus.txt";
+
+
     public static void main(String[] args) throws Exception {
-
-        while (nonEmptyFile("C:\\Users\\ANESTEISHA\\word_rus_efremova.txt")) {
-
-            String word = readerFirstLineFile("C:\\Users\\ANESTEISHA\\word_rus_efremova.txt");
-            writerNewFileVocabulary(word, "C:\\Users\\ANESTEISHA\\vocabulary_efremova.txt");
-            deleteFirstWordFromList(word, "C:\\Users\\ANESTEISHA\\word_rus_efremova.txt");
-
-        }
-
-    }
+        FileWriter writer1 = new FileWriter(NOUNS, true); // true - дозапись (false - перезапись)
+        FileWriter writer2 = new FileWriter(DEFINITION, true);
+        FileWriter writer3 = new FileWriter(VOCABULARY, true);
+        FileWriter writer4 = new FileWriter(SPISOK_NEVOSHEDSHIH_PLUS, true);
 
 
-    public static String readerFirstLineFile(String sourceFileName) throws Exception {
-        FileReader reader = new FileReader(sourceFileName);
+        FileReader reader = new FileReader(OZHEGOV);
         Scanner scan = new Scanner(reader);
         String word=null;
-        while (scan.hasNextLine()) {
-            word = scan.nextLine(); break; // читает первую строку
+
+        try {
+            while (scan.hasNextLine()) {
+
+                String line = scan.nextLine();
+
+                String definition = getDefinitionFromOzhegov(line);
+
+
+                int n = line.indexOf(124);
+                String firstWord = line.substring(0, n); // первое слово строки
+                firstWord.trim();
+
+                if (firstWord.equals(word)) {
+                    continue; //если слово повторяется, пропускает
+                }
+
+                System.out.println(definition);
+
+                char[] massFirstWord = firstWord.toCharArray(); // массив символов первого слова
+                boolean noun = getNoun(massFirstWord);
+                if(noun) {
+                    word = firstWord;
+                }
+                else {
+                    writeNewLineInFile(firstWord + " - " + definition, writer4);
+                    continue;
+                }
+
+
+
+                Pattern p = Pattern.compile("(\\Q, а также\\E)|(\\Q Spec\\E)|(\\QВ старину: \\E)|(\\QРазг. \\E)" +
+                        "|(\\QРазг. шутл. \\E)|(\\Q Lib\\E)" +
+                        "|(\\.?\\s?\\Q+\\E)|(\\s?[1-9]?\\Q N\\E[1-9]/?[0-9]?/?[0-9]?/?[0-9]?)");
+                Matcher m = p.matcher(definition);
+
+                if (m.find()) {
+                    System.out.println(definition+" 1");
+                    int x = m.start();
+                    int y = m.end();
+                    definition = definition.substring(0, x)+definition.substring(y-1, definition.length());
+                    System.out.println(definition+" 2");
+                }
+                m.reset();
+
+                Pattern p2 = Pattern.compile("(\\Q=\\E)|(\\QСокращение:\\E)");
+                Matcher m2 = p2.matcher(definition);
+
+                if (m2.find()) {
+                    writeNewLineInFile(firstWord, writer4);
+                    writeNewLineInFile(firstWord + " - " + definition, writer4);
+                    System.out.println(firstWord + " - " + definition + " ЕСТЬ ОТСЫЛКИ");
+                    continue;
+                }
+                m2.reset();
+
+
+                definition = definition.replaceAll("\\w?ССР", "Республики");
+                definition = definition.replaceAll("РСФСР", "Рф");
+                definition = definition.replaceAll("Primo", "Кроме того, называют");
+
+                definition = definition.substring(0,1).toUpperCase() + definition.substring(1) + ".";
+
+
+                    writeNewLineInFile(word, writer1);
+                    writeNewLineInFile(definition, writer2);
+                    writeNewLineInFile(word + " - " + definition, writer3);
+
+                word = firstWord;
+            }
         }
-        reader.close();
-        return word;
+
+        catch (IndexOutOfBoundsException e){
+            System.out.println("Error IndexOutOfBoundsException");
+        }
+
+        catch (IOException e){
+            System.out.println("Error IOException");
+        }
+
+        finally {
+            writer1.close();
+            writer2.close();
+            writer3.close();
+            writer4.close();
+
+            scan.close();
+        }
+
     }
 
-    public static void writerNewFileVocabulary (String word, String outputFileName) throws Exception {
-        FileWriter writer = new FileWriter(outputFileName, true); // true - дозапись, false - перезапись
 
-        writer.write(word); //записывает данное слово
-        writer.append('-');
-        writer.append(readerFileOzhegov(word, "C:\\Users\\ANESTEISHA\\Ozegov.txt")); //записывает толкование со словаря Ожегова
+    public static boolean getNoun(char[] mass) {
+        boolean noun=true;
+        if (mass.length <= 1) {
+            noun = false;
+        }  else {
 
+            char a;
+            char b;
+
+            for (int i = 1; i <=2; i++) {
+                a = mass[mass.length - 1];
+                b = mass[mass.length - 2];
+
+                if (a=='.' || a=='-' || a=='й' && b=='ы' || a=='й' && b=='и' || a=='й' && b=='о' || a=='ь' && b== 'т' || a== 'я' && b== 'с'|| a== 'и' && b== 'т')  {
+                    noun = false;
+                }
+
+            }
+
+        }
+
+        return noun;
+    }
+
+
+    //создаёт новый список
+    public static void writeNewLineInFile(String line, FileWriter writer) throws Exception{
+
+        writer.write(line);
         writer.append('\n');
         writer.flush();
-        writer.close();
+
     }
 
 
-    public static String readerFileOzhegov(String word, String fileOzhegov) throws Exception{
-        FileReader reader = new FileReader(fileOzhegov);
-        Scanner scan = new Scanner(reader);
-        String definicia = null;
-        // word = word.trim(); // отсекает пробелы вначале и вконце слова
-
-        while (scan.hasNextLine()){
-
-            String aa = scan.nextLine(); // очередная строка записывается в строку aa
-            int n = aa.indexOf(124); // индекс первой вертикальной полоски в строке aa
-            String cc = aa.substring(0, n); // копирования первого слова строки aa в строку cc
-
-            // System.out.println(word.length() + " word " + word.charAt(0)); // проверить совпадает ли длина заданного слова и слова со строки
-            // System.out.println(cc.length() + " cc " + cc.charAt(0)); // для того же
-            // System.out.println(aa);
 
 
-            // если заданное слово совпадает со словом строки cc делать
-            if (word.equals(cc)) {
+    public static String getDefinitionFromOzhegov(String lineOzhegov) throws Exception{
+        String definition;
 
-                char[] bb = aa.toCharArray(); // массив символов строки aa
+        char[] massLine = lineOzhegov.toCharArray();
 
-                //ищет в массиве bb индексы всех вертикальных полосок и записываем их в массив indexAll
-                int[] indexAll = new int [7];
-                int r = 0;
-                for (int i = 0; i <bb.length; i++) {
-                    char k = bb[i];
-                    if (k=='|') {
-                        indexAll[r] = i;
-                        r++;
-                        if (r==7) break;
-                    }
-                }
-
-                //выводит дефиницию(толкование)
-                if (indexAll[4]-indexAll[3] > 1)
-                    definicia = aa.substring(indexAll[3]+1, indexAll[4]) + ' ' + aa.substring(indexAll[4]+1,indexAll[5]);
-                else {
-                    definicia = aa.substring(indexAll[4] + 1, indexAll[5]);
-                }
-
-                break;
-
-            }
-
-            else {
-                definicia = "Определение не найдено";
-            }
-
-        }
-
-        //  System.out.println(word + " word");
-        //  System.out.println(definicia);
-
-        reader.close();
-        return definicia;
-    }
-
-    public static void deleteFirstWordFromList(String word, String  sourceFileName) throws Exception{
-
-        FileReader reader = new FileReader(sourceFileName);
-        String outputFileName = sourceFileName + "_copy.txt";
-        FileWriter writer = new FileWriter(outputFileName, false); //false - перезапись файла-копии, true - дозапись
-
-        Scanner scan = new Scanner(reader);
-
-        String line = scan.nextLine();
-
-        while (scan.hasNextLine()) {
-
-            line = scan.nextLine();
-
-            {
-                writer.write(line);
-                writer.write('\n');
-
+        //ищет в массиве индексы всех вертикальных полосок и записываем их в массив indexAll
+        int[] indexAll = new int [7];
+        int r = 0;
+        for (int i = 0; i <massLine.length; i++) {
+            char k = massLine[i];
+            if (k=='|') {
+                indexAll[r] = i;
+                r++;
+                if (r==7) break;
             }
         }
-        reader.close();
-        writer.flush();
-        writer.close();
 
-        fileDeleteRename(sourceFileName, outputFileName);
+        //выводит дефиницию(толкование)
+        if (indexAll[4]-indexAll[3] > 2)
+            definition = "???" + ' ' + lineOzhegov.substring(indexAll[4]+1,indexAll[5]);
+        else {
+            definition = lineOzhegov.substring(indexAll[4] + 1, indexAll[5]);
+        }
+
+
+        return definition;
     }
 
-
-    public static void fileDeleteRename(String sourceFileName, String outputFileName){
-        File  reader = new File(sourceFileName);
-        File writer = new File(outputFileName);
-        reader.delete();
-        writer.renameTo(reader);
-    }
-
-    public static boolean nonEmptyFile(String sourceFileName) throws Exception{
-        boolean a = false;
-        FileReader reader = new FileReader(sourceFileName);
-        Scanner scan = new Scanner(reader);
-        if (scan.hasNextLine()) a = true;
-        reader.close();
-        return a;
-    }
 
 }
